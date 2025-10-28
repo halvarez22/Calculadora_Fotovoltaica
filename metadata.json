@@ -1,0 +1,5 @@
+{
+  "name": "Extractor de Recibos CFE",
+  "description": "Una aplicación web elegante para extraer y visualizar datos de recibos de luz de la CFE utilizando IA. Sube una imagen de tu recibo para obtener un resumen claro y organizado de tu consumo y costos.",
+  "requestFramePermissions": []
+}
