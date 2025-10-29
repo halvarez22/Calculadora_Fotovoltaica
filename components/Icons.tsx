@@ -1,4 +1,4 @@
-import React, { JSX } from 'react';
+import React from 'react';
 
 type IconProps = React.SVGProps<SVGSVGElement>;
 
