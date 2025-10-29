@@ -139,37 +139,45 @@ export const checkDuplicate = async (entry: HistoryEntry): Promise<boolean> => {
 // Save a new analysis entry to Firestore
 export const saveAnalysisToFirestore = async (entry: HistoryEntry): Promise<void> => {
   try {
+    console.log('💾 saveAnalysisToFirestore called with entry:', entry);
+
     // Verificar duplicados antes de guardar
     const isDuplicate = await checkDuplicate(entry);
     if (isDuplicate) {
+      console.log('⚠️ Entrada duplicada detectada, abortando guardado');
       throw new Error('DUPLICATE_ENTRY');
     }
-    
+
     // Always save to localStorage first (primary storage for now)
     const localHistory = localStorage.getItem('billHistory');
     const historyArray = localHistory ? JSON.parse(localHistory) : [];
     historyArray.unshift(entry);
     localStorage.setItem('billHistory', JSON.stringify(historyArray));
-    
+    console.log('✅ Guardado en localStorage');
+
     // Save to Firestore with session metadata
     const sessionId = getSessionId();
+    console.log('🔑 Session ID para guardado:', sessionId);
+
     const entryWithMeta = {
       ...entry,
       sessionId,
       createdAt: Timestamp.now(),
     };
-    
-    console.log('Guardando en Firestore...', entryWithMeta);
+
+    console.log('🌐 Guardando en Firestore...', entryWithMeta);
     const docRef = await addDoc(collection(db, HISTORY_COLLECTION), entryWithMeta);
-    console.log('Guardado en Firestore con ID:', docRef.id);
+    console.log('✅ Guardado en Firestore con ID:', docRef.id);
   } catch (error) {
-    console.error("Error guardando en Firestore:", error);
+    console.error("❌ Error guardando en Firestore:", error);
     throw error; // Re-throw para que App.tsx sepa que hubo un error
   }
 };
 
 // Load analysis history from Firestore (with localStorage fallback)
 export const loadHistoryFromFirestore = async (): Promise<HistoryEntry[]> => {
+  console.log('🔄 loadHistoryFromFirestore called');
+
   // Primero cargar de localStorage (más rápido y confiable)
   const localHistory = localStorage.getItem('billHistory');
   if (localHistory) {
@@ -181,21 +189,33 @@ export const loadHistoryFromFirestore = async (): Promise<HistoryEntry[]> => {
       console.error("Error parsing localStorage history:", parseError);
     }
   }
-  
+
   // Intentar cargar de Firestore para sincronizar
   try {
-    console.log('Intentando cargar de Firestore...');
+    console.log('🌐 Intentando cargar de Firestore...');
     const sessionId = getSessionId();
+    console.log('🔑 Session ID actual:', sessionId);
+
     const q = query(
       collection(db, HISTORY_COLLECTION),
       limit(100) // Sin orderBy para evitar errores de índice
     );
-    
+
+    console.log('📡 Ejecutando query a Firestore...');
     const querySnapshot = await getDocs(q);
+    console.log('📊 Query completada. Documentos encontrados:', querySnapshot.size);
+
     const history: HistoryEntry[] = [];
-    
+
     querySnapshot.forEach((docSnap) => {
       const data = docSnap.data();
+      console.log(`📄 Procesando documento ${docSnap.id}:`, {
+        sessionId: data.sessionId,
+        customerName: data.customerName,
+        serviceNumber: data.serviceNumber,
+        createdAt: data.createdAt
+      });
+
       const entry: HistoryEntry = {
         id: data.id || Number(docSnap.id),
         date: data.createdAt?.toDate?.().toLocaleString('es-MX') || data.date || new Date().toLocaleString('es-MX'),
@@ -205,29 +225,37 @@ export const loadHistoryFromFirestore = async (): Promise<HistoryEntry[]> => {
         billingPeriod: data.billingPeriod,
         fullData: data.fullData
       };
-      
+
       // Solo incluir entradas de esta sesión
       if (data.sessionId === sessionId) {
+        console.log('✅ Documento incluido (misma sesión)');
         history.push(entry);
+      } else {
+        console.log('❌ Documento excluido (sesión diferente)');
       }
     });
-    
+
+    console.log('📋 Documentos filtrados por sesión:', history.length);
+
     // Ordenar por fecha más reciente primero
     history.sort((a, b) => {
       const dateA = new Date(a.date).getTime();
       const dateB = new Date(b.date).getTime();
       return dateB - dateA;
     });
-    
+
     if (history.length > 0) {
       console.log('✅ Historial sincronizado desde Firestore:', history.length, 'análisis');
       localStorage.setItem('billHistory', JSON.stringify(history));
       return history;
+    } else {
+      console.log('⚠️ No se encontraron documentos para esta sesión en Firestore');
     }
   } catch (error) {
-    console.log("Firestore no disponible, usando localStorage:", error);
+    console.error("❌ Error cargando de Firestore:", error);
+    console.log("Firestore no disponible, usando localStorage");
   }
-  
+
   return [];
 };
 

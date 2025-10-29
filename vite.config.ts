@@ -18,6 +18,44 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      build: {
+        outDir: 'dist',
+        assetsDir: 'assets',
+        rollupOptions: {
+          input: {
+            main: './index.html'
+          },
+          output: {
+            manualChunks: undefined
+          }
+        },
+        cssCodeSplit: false,
+        minify: false,
+        sourcemap: false,
+        emptyOutDir: true,
+        lib: false,
+        target: 'esnext',
+        ssr: false,
+        modulePreload: {
+          polyfill: false,
+        },
+        reportCompressedSize: false,
+        watch: null,
+        commonjsOptions: {
+          include: [],
+        },
+        write: true,
+        inlineDynamicImports: false,
+        preserveEntrySignatures: 'strict',
+        treeshake: false,
+        manifest: false,
+        skipWrite: false,
+        copyPublicDir: true,
+      },
+      css: {
+        devSourcemap: true,
+        postcss: {},
+      },
     };
 });
