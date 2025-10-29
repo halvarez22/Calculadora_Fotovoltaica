@@ -53,6 +53,9 @@ export default defineConfig(({ mode }) => {
         skipWrite: false,
         copyPublicDir: true,
       },
+      esbuild: {
+        jsx: 'automatic',
+      },
       css: {
         devSourcemap: true,
         postcss: {},
