@@ -54,8 +54,7 @@ export default defineConfig(({ mode }) => {
         copyPublicDir: true,
       },
       esbuild: {
-        jsxFactory: 'React.createElement',
-        jsxFragment: 'React.Fragment',
+        jsx: 'transform',
       },
       css: {
         devSourcemap: true,
