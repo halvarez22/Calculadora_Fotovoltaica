@@ -5,7 +5,7 @@
   "installCommand": "npm install",
   "framework": "vite",
   "env": {
-    "GEMINI_API_KEY": "@gemini-api-key",
+    "VITE_GEMINI_API_KEY": "@gemini-api-key",
     "FIREBASE_API_KEY": "AIzaSyCT62Y3fnjtyB5ZdmNK7d0KnvsomyzeWVk",
     "FIREBASE_AUTH_DOMAIN": "calculadoravoltaic.firebaseapp.com",
     "FIREBASE_PROJECT_ID": "calculadoravoltaic",

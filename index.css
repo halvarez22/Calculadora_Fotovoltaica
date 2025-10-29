@@ -1,1 +1,7 @@
-/* Placeholder CSS file */
+@import "tailwindcss";
+@source "./**/*.{html,js,jsx,ts,tsx}";
+
+@theme {
+  --color-brand-yellow: #FFC107;
+  --color-brand-blue: #0D47A1;
+}

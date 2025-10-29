@@ -19,10 +19,12 @@ interface BillImages {
 export const extractBillData = async (
   images: BillImages
 ): Promise<BillData> => {
-  if (!process.env.API_KEY) {
+  // Fix: Use import.meta.env instead of process.env for Vite
+  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (import.meta as any).env?.GEMINI_API_KEY;
+  if (!apiKey) {
     throw new Error("La clave API no está configurada. Contacta al administrador.");
   }
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
 
   const imagePartFront = fileToGenerativePart(images.front.base64, images.front.mimeType);
   const imagePartBack = fileToGenerativePart(images.back.base64, images.back.mimeType);
