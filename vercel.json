@@ -3,5 +3,14 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install",
-  "framework": "vite"
+  "framework": "vite",
+  "env": {
+    "GEMINI_API_KEY": "@gemini-api-key",
+    "FIREBASE_API_KEY": "AIzaSyCT62Y3fnjtyB5ZdmNK7d0KnvsomyzeWVk",
+    "FIREBASE_AUTH_DOMAIN": "calculadoravoltaic.firebaseapp.com",
+    "FIREBASE_PROJECT_ID": "calculadoravoltaic",
+    "FIREBASE_STORAGE_BUCKET": "calculadoravoltaic.firebasestorage.app",
+    "FIREBASE_MESSAGING_SENDER_ID": "28846522699",
+    "FIREBASE_APP_ID": "1:28846522699:web:48a7e2674a73af00e068ce"
+  }
 }
