@@ -226,13 +226,8 @@ export const loadHistoryFromFirestore = async (): Promise<HistoryEntry[]> => {
         fullData: data.fullData
       };
 
-      // Solo incluir entradas de esta sesión
-      if (data.sessionId === sessionId) {
-        console.log('✅ Documento incluido (misma sesión)');
-        history.push(entry);
-      } else {
-        console.log('❌ Documento excluido (sesión diferente)');
-      }
+      // Incluir todas las entradas (independiente de la sesión) para mostrar historial completo
+      history.push(entry);
     });
 
     console.log('📋 Documentos filtrados por sesión:', history.length);
