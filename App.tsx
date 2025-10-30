@@ -216,13 +216,24 @@ function App() {
     if (!billData) return;
     
     try {
+      const extractedSN = billData.customerInfo.find(i => i.key.toUpperCase().includes('NOMBRE'))?.value || 'N/A';
+      const extractedService = billData.customerInfo.find(i => i.key.includes('NO. DE SERVICIO'))?.value || 'N/A';
+      const extractedPeriod = billData.billingSummary.find(i => i.key.includes('PERIODO FACTURADO'))?.value || 'N/A';
+
+      const normalizedSN = normalizeServiceNumber(extractedService);
+      const normalizedPeriod = normalizeString(extractedPeriod).replace(/[^A-Z0-9]/g, '');
+      if (!normalizedPeriod || normalizedPeriod === 'NA' || normalizedSN === '0') {
+        alert('⚠️ No se puede guardar: faltan datos clave (No. de servicio o Periodo). Verifica la calidad del recibo y vuelve a analizar.');
+        return;
+      }
+
       const newEntry: HistoryEntry = {
         id: Date.now(),
         date: new Date().toLocaleString('es-MX'),
-        customerName: billData.customerInfo.find(i => i.key.toUpperCase().includes('NOMBRE'))?.value || 'N/A',
-        serviceNumber: billData.customerInfo.find(i => i.key.includes('NO. DE SERVICIO'))?.value || 'N/A',
+        customerName: extractedSN,
+        serviceNumber: extractedService,
         totalAmount: billData.billingSummary.find(i => i.key.includes('TOTAL A PAGAR'))?.value || 'N/A',
-        billingPeriod: billData.billingSummary.find(i => i.key.includes('PERIODO FACTURADO'))?.value || 'N/A',
+        billingPeriod: extractedPeriod,
         fullData: billData
       };
       

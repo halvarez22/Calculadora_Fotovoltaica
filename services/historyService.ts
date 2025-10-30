@@ -42,6 +42,9 @@ const normalizeServiceNumber = (sn: string): string => {
 const buildCompositeId = (serviceNumber: string, billingPeriod: string): string => {
   const sn = normalizeServiceNumber(serviceNumber);
   const bp = normalizeString(billingPeriod).replace(/[^A-Z0-9]/g, '');
+  if (!bp || bp === 'NA' || sn === '0') {
+    return 'INVALID';
+  }
   return `${sn}_${bp}`;
 };
 
@@ -99,6 +102,10 @@ export const checkDuplicate = async (entry: HistoryEntry): Promise<boolean> => {
     
     // Verificar en Firestore por ID compuesto (global)
     const compositeId = buildCompositeId(entry.serviceNumber, entry.billingPeriod);
+    if (compositeId === 'INVALID') {
+      console.log('ℹ️ Clave compuesta inválida (serviceNumber/billingPeriod faltantes). No se puede verificar duplicado.');
+      return false;
+    }
     const docRef = doc(db, HISTORY_COLLECTION, compositeId);
     const existing = await getDoc(docRef);
     const exists = existing.exists();
@@ -160,6 +167,9 @@ export const saveAnalysisToFirestore = async (entry: HistoryEntry): Promise<void
     };
 
     const compositeId = buildCompositeId(entry.serviceNumber, entry.billingPeriod);
+    if (compositeId === 'INVALID') {
+      throw new Error('INVALID_KEYS');
+    }
     const docRef = doc(collection(db, HISTORY_COLLECTION), compositeId);
     console.log('🌐 Guardando en Firestore con ID compuesto...', compositeId);
     await setDoc(docRef, entryWithMeta);
