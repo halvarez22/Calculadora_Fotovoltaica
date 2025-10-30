@@ -9,9 +9,9 @@ const ConsumptionChart: React.FC<{ data: HistoricalConsumptionData[] }> = ({ dat
   const maxConsumption = Math.max(...data.map((d) => d.consumptionKWh), 0);
   const maxDemand = Math.max(...data.map((d) => d.demandKW), 0);
 
-  // Use a combined max for a consistent y-axis if we were to plot them together,
-  // but for separate bars, individual max is fine. We'll scale based on consumption max for simplicity.
-  const yAxisMax = maxConsumption > 0 ? maxConsumption * 1.1 : 100; // Add 10% padding
+  // Escala combinada para que ninguna barra se salga del contenedor
+  const baseMax = Math.max(maxConsumption, maxDemand);
+  const yAxisMax = baseMax > 0 ? baseMax * 1.1 : 100; // 10% padding
 
   const reversedData = [...data].reverse();
 
@@ -39,8 +39,8 @@ const ConsumptionChart: React.FC<{ data: HistoricalConsumptionData[] }> = ({ dat
 
 
         {reversedData.map((item, index) => {
-          const consumptionHeight = maxConsumption > 0 ? (item.consumptionKWh / yAxisMax) * 100 : 0;
-          const demandHeight = maxDemand > 0 ? (item.demandKW / yAxisMax) * 100 : 0;
+          const consumptionHeight = baseMax > 0 ? Math.min((item.consumptionKWh / yAxisMax) * 100, 100) : 0;
+          const demandHeight = baseMax > 0 ? Math.min((item.demandKW / yAxisMax) * 100, 100) : 0;
 
           return (
             <div key={`${item.period}-${index}`} className="flex-1 h-full flex flex-col justify-end items-center group">

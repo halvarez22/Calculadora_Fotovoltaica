@@ -7,6 +7,10 @@ import { saveAnalysisToFirestore, loadHistoryFromFirestore, clearHistoryFromFire
 const normalizeString = (str: string): string => {
   return str.trim().toUpperCase().replace(/\s+/g, ' ');
 };
+const normalizeServiceNumber = (sn: string): string => {
+  const digits = (sn || '').replace(/\D+/g, '');
+  return digits.replace(/^0+/, '') || '0';
+};
 import FileUpload from './components/FileUpload';
 import BillDisplay from './components/BillDisplay';
 import Loader from './components/Loader';
@@ -113,7 +117,7 @@ function App() {
         if (localHistory) {
           const historyArray: HistoryEntry[] = JSON.parse(localHistory);
           const existingEntry = historyArray.find(item => 
-            normalizeString(item.serviceNumber) === normalizeString(serviceNumber) &&
+            normalizeServiceNumber(item.serviceNumber) === normalizeServiceNumber(serviceNumber) &&
             normalizeString(item.billingPeriod) === normalizeString(billingPeriod) &&
             normalizeString(item.customerName) === normalizeString(customerName)
           );
@@ -135,7 +139,7 @@ function App() {
         console.log('📥 localStorage vacío, cargando desde Firestore...');
         const firestoreHistory = await loadHistoryFromFirestore();
         const existingEntry = firestoreHistory.find(item => 
-          normalizeString(item.serviceNumber) === normalizeString(serviceNumber) &&
+          normalizeServiceNumber(item.serviceNumber) === normalizeServiceNumber(serviceNumber) &&
           normalizeString(item.billingPeriod) === normalizeString(billingPeriod) &&
           normalizeString(item.customerName) === normalizeString(customerName)
         );

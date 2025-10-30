@@ -8,7 +8,9 @@ import {
   limit, 
   deleteDoc, 
   doc,
-  Timestamp 
+  Timestamp,
+  setDoc,
+  getDoc 
 } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import { HistoryEntry } from "../types";
@@ -28,6 +30,19 @@ const getSessionId = (): string => {
 // Normalizar strings para comparación
 const normalizeString = (str: string): string => {
   return str.trim().toUpperCase().replace(/\s+/g, ' ');
+};
+
+// Normalizar número de servicio: solo dígitos y sin ceros a la izquierda
+const normalizeServiceNumber = (sn: string): string => {
+  const digits = (sn || '').replace(/\D+/g, '');
+  return digits.replace(/^0+/, '') || '0';
+};
+
+// Construir ID compuesto global (serviceNumber + billingPeriod)
+const buildCompositeId = (serviceNumber: string, billingPeriod: string): string => {
+  const sn = normalizeServiceNumber(serviceNumber);
+  const bp = normalizeString(billingPeriod).replace(/[^A-Z0-9]/g, '');
+  return `${sn}_${bp}`;
 };
 
 // Verificar si ya existe un análisis duplicado
@@ -82,54 +97,33 @@ export const checkDuplicate = async (entry: HistoryEntry): Promise<boolean> => {
       }
     }
     
-    // Buscar en Firestore
-    const sessionId = getSessionId();
-    console.log('🔍 Buscando en Firestore con sessionId:', sessionId);
-    const q = query(collection(db, HISTORY_COLLECTION), limit(100));
-    const querySnapshot = await getDocs(q);
-    
-    let duplicateCount = 0;
-    for (const docSnap of querySnapshot.docs) {
-      const data = docSnap.data();
-      
-      // Normalizar valores para comparación
-      const dataServiceNumber = normalizeString(data.serviceNumber || '');
-      const dataBillingPeriod = normalizeString(data.billingPeriod || '');
-      const dataCustomerName = normalizeString(data.customerName || '');
-      const entryServiceNumber = normalizeString(entry.serviceNumber);
-      const entryBillingPeriod = normalizeString(entry.billingPeriod);
-      const entryCustomerName = normalizeString(entry.customerName);
-      
-      console.log(`📄 Comparando documento ${docSnap.id}:`, {
-        sessionId: data.sessionId === sessionId,
-        sessionMatch: data.sessionId,
-        currentSession: sessionId,
-        serviceNumberMatch: dataServiceNumber === entryServiceNumber,
-        dataSN: dataServiceNumber,
-        entrySN: entryServiceNumber,
-        billingPeriodMatch: dataBillingPeriod === entryBillingPeriod,
-        dataBP: dataBillingPeriod,
-        entryBP: entryBillingPeriod,
-        customerNameMatch: dataCustomerName === entryCustomerName,
-        dataCN: dataCustomerName,
-        entryCN: entryCustomerName
-      });
-      
-      // NO filtrar por sessionId - verificar duplicados independientemente de la sesión
-      if (dataServiceNumber === entryServiceNumber &&
-          dataBillingPeriod === entryBillingPeriod &&
-          dataCustomerName === entryCustomerName) {
-        duplicateCount++;
-        console.log('⚠️ Análisis duplicado encontrado en Firestore:', {
-          docId: docSnap.id,
-          sessionId: data.sessionId,
-          esLaMismaSesion: data.sessionId === sessionId
-        });
+    // Verificar en Firestore por ID compuesto (global)
+    const compositeId = buildCompositeId(entry.serviceNumber, entry.billingPeriod);
+    const docRef = doc(db, HISTORY_COLLECTION, compositeId);
+    const existing = await getDoc(docRef);
+    const exists = existing.exists();
+    console.log(`✅ Verificación por ID compuesto ${compositeId}: ${exists ? 'EXISTE' : 'NO EXISTE'}`);
+    if (exists) return true;
+
+    // Fallback: detectar duplicados antiguos sin ID compuesto (escaneo limitado)
+    try {
+      const q = query(collection(db, HISTORY_COLLECTION), limit(100));
+      const snap = await getDocs(q);
+      const entrySN = normalizeServiceNumber(entry.serviceNumber);
+      const entryBP = normalizeString(entry.billingPeriod);
+      for (const docSnap of snap.docs) {
+        const data = docSnap.data();
+        const dataSN = normalizeServiceNumber(data.serviceNumber || '');
+        const dataBP = normalizeString(data.billingPeriod || '');
+        if (dataSN === entrySN && dataBP === entryBP) {
+          console.log('⚠️ Duplicado detectado por fallback (doc antiguo sin ID compuesto):', docSnap.id);
+          return true;
+        }
       }
+    } catch (fallbackErr) {
+      console.log('Fallback checkDuplicate scan error (continuar):', fallbackErr);
     }
-    
-    console.log(`✅ Verificación completada. Duplicados encontrados: ${duplicateCount}`);
-    return duplicateCount > 0;
+    return false;
   } catch (error) {
     console.error("Error verificando duplicados:", error);
     return false; // Si hay error, permitir guardar para no bloquear al usuario
@@ -155,7 +149,7 @@ export const saveAnalysisToFirestore = async (entry: HistoryEntry): Promise<void
     localStorage.setItem('billHistory', JSON.stringify(historyArray));
     console.log('✅ Guardado en localStorage');
 
-    // Save to Firestore with session metadata
+    // Save to Firestore con ID compuesto global
     const sessionId = getSessionId();
     console.log('🔑 Session ID para guardado:', sessionId);
 
@@ -165,9 +159,11 @@ export const saveAnalysisToFirestore = async (entry: HistoryEntry): Promise<void
       createdAt: Timestamp.now(),
     };
 
-    console.log('🌐 Guardando en Firestore...', entryWithMeta);
-    const docRef = await addDoc(collection(db, HISTORY_COLLECTION), entryWithMeta);
-    console.log('✅ Guardado en Firestore con ID:', docRef.id);
+    const compositeId = buildCompositeId(entry.serviceNumber, entry.billingPeriod);
+    const docRef = doc(collection(db, HISTORY_COLLECTION), compositeId);
+    console.log('🌐 Guardando en Firestore con ID compuesto...', compositeId);
+    await setDoc(docRef, entryWithMeta);
+    console.log('✅ Guardado en Firestore con ID:', compositeId);
   } catch (error) {
     console.error("❌ Error guardando en Firestore:", error);
     throw error; // Re-throw para que App.tsx sepa que hubo un error
