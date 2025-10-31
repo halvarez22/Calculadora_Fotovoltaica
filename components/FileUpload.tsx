@@ -1,4 +1,4 @@
-import React, { useState, useRef, DragEvent } from 'react';
+import React, { useState, useRef, useEffect, DragEvent } from 'react';
 import { UploadIcon, CheckCircleIcon, ArrowRightIcon, VoltaicIcon } from './Icons';
 
 interface UploadedImage {
@@ -35,7 +35,18 @@ const FileInputBox: React.FC<{
   onFileChange: (file: File) => void;
 }> = ({ id, label, fileState, onFileChange }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [showZoom, setShowZoom] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Limpiar timeout cuando el componente se desmonte
+  useEffect(() => {
+    return () => {
+      if (zoomTimeoutRef.current) {
+        clearTimeout(zoomTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -77,8 +88,89 @@ const FileInputBox: React.FC<{
         `}
       >
         {fileState ? (
-          <div className="text-center">
-            <img src={fileState.preview} alt="Vista previa" className="max-h-40 mx-auto mb-2 rounded" />
+          <div className="text-center relative w-full">
+            {fileState.file.type === 'application/pdf' ? (
+              <div className="max-h-40 mx-auto mb-2 rounded bg-neutral-900/50 p-4 flex items-center justify-center">
+                <div className="text-center">
+                  <svg className="w-16 h-16 mx-auto text-red-500 mb-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-xs text-neutral-300">PDF</p>
+                </div>
+              </div>
+            ) : (
+              <div className="relative inline-block">
+                <div
+                  className="relative cursor-pointer"
+                  onMouseEnter={() => {
+                    if (zoomTimeoutRef.current) {
+                      clearTimeout(zoomTimeoutRef.current);
+                      zoomTimeoutRef.current = null;
+                    }
+                    setShowZoom(true);
+                  }}
+                  onMouseLeave={() => {
+                    // Pequeño delay antes de cerrar para permitir que el mouse se mueva al overlay
+                    zoomTimeoutRef.current = setTimeout(() => {
+                      setShowZoom(false);
+                    }, 150);
+                  }}
+                >
+                  <img 
+                    src={fileState.preview} 
+                    alt="Vista previa" 
+                    className="max-h-40 mx-auto mb-2 rounded transition-transform duration-200" 
+                    onError={(e) => {
+                      console.error('Error cargando imagen:', e);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+                {showZoom && (
+                  <div 
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-8"
+                    onMouseEnter={() => {
+                      if (zoomTimeoutRef.current) {
+                        clearTimeout(zoomTimeoutRef.current);
+                        zoomTimeoutRef.current = null;
+                      }
+                      setShowZoom(true);
+                    }}
+                    onMouseLeave={() => {
+                      setShowZoom(false);
+                    }}
+                    onClick={() => setShowZoom(false)}
+                  >
+                    <div 
+                      className="relative max-w-[90vw] max-h-[90vh] flex items-center justify-center"
+                      onMouseEnter={() => {
+                        if (zoomTimeoutRef.current) {
+                          clearTimeout(zoomTimeoutRef.current);
+                          zoomTimeoutRef.current = null;
+                        }
+                        setShowZoom(true);
+                      }}
+                    >
+                      <img 
+                        src={fileState.preview} 
+                        alt="Vista previa ampliada" 
+                        className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl pointer-events-none"
+                      />
+                      <button
+                        onClick={() => setShowZoom(false)}
+                        className="absolute top-2 right-2 text-white bg-black/70 hover:bg-black/90 px-3 py-1 rounded text-sm transition-colors z-10"
+                        aria-label="Cerrar"
+                      >
+                        ✕ Cerrar
+                      </button>
+                      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-sm bg-black/50 px-4 py-2 rounded pointer-events-none">
+                        Click fuera de la imagen para cerrar
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             <p className="text-sm text-neutral-300 truncate max-w-xs">{fileState.file.name}</p>
             <div className="flex items-center justify-center mt-2 text-brand-yellow font-semibold">
               <CheckCircleIcon className="w-5 h-5 mr-1" />
@@ -103,9 +195,31 @@ const FileUpload: React.FC<FileUploadProps> = ({ onExtract }) => {
   const [frontImage, setFrontImage] = useState<FileState | null>(null);
   const [backImage, setBackImage] = useState<FileState | null>(null);
 
+  // Limpiar URLs cuando el componente se desmonte
+  React.useEffect(() => {
+    return () => {
+      if (frontImage?.preview) URL.revokeObjectURL(frontImage.preview);
+      if (backImage?.preview) URL.revokeObjectURL(backImage.preview);
+    };
+  }, [frontImage, backImage]);
+
   const handleFileChange = (file: File, side: 'front' | 'back') => {
     const setter = side === 'front' ? setFrontImage : setBackImage;
-    setter({ file, preview: URL.createObjectURL(file) });
+    
+    // Limpiar URL anterior si existe para evitar memory leaks
+    if (side === 'front' && frontImage?.preview) {
+      URL.revokeObjectURL(frontImage.preview);
+    }
+    if (side === 'back' && backImage?.preview) {
+      URL.revokeObjectURL(backImage.preview);
+    }
+    
+    // Crear nueva preview
+    const preview = file.type === 'application/pdf' 
+      ? '' // PDFs no tienen preview de imagen
+      : URL.createObjectURL(file);
+    
+    setter({ file, preview });
   };
 
   const handleSubmit = async () => {

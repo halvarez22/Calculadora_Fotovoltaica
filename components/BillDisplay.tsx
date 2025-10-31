@@ -3,6 +3,7 @@ import { BillData } from '../types';
 import ConsumptionChart from './ConsumptionChart';
 import DataSection from './DataSection';
 import { UserIcon, InvoiceIcon, ChartIcon, TableIcon, WrenchIcon, MoneyIcon } from './Icons';
+import FinancialPanel from './FinancialPanel';
 
 interface BillDisplayProps {
   data: BillData;
@@ -96,6 +97,9 @@ const BillDisplay: React.FC<BillDisplayProps> = ({ data, onSave, isSaved = false
       {data.paymentBreakdown && data.paymentBreakdown.length > 0 && (
         <DataSection icon={<MoneyIcon/>} title="Desglose del Importe a Pagar" data={data.paymentBreakdown} type="table" columns={paymentBreakdownColumns} />
       )}
+
+      {/* Motor Financiero (beta) */}
+      <FinancialPanel bill={data} />
     </div>
   );
 };
